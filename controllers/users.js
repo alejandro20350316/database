@@ -30,7 +30,7 @@ const listUserByID =async (req = request, res = response) =>{
     const {id}=req.params;
 
     if(isNaN(id)){
-        res.status(400).json({msg: 'invalid ID'});
+        res.status(404 ).json({msg: 'invalid ID'});
         return;
     }
     let conn; 
@@ -56,4 +56,65 @@ const listUserByID =async (req = request, res = response) =>{
     }
 }
 
-module.exports={listUsers, listUserByID};
+const addUser = async (req = request, res =response)=>{
+    const {
+        username,
+     email,
+     password,
+     name,
+     lastname,
+     phone_number ='',
+     role_id,
+     isactive = 1
+    } = req.body;
+
+   
+  
+    if(!username || !email || !password || !name || !lastname ||!role_id){
+        res.status(400).json ({msg: 'Missing information'});
+        return;
+    }
+
+    const user =[username, email, password, name, lastname, phone_number, role_id, isactive]
+
+    let conn;
+
+    try{
+        conn= await pool.getConnection();
+
+        const [UsernameUser]=await conn.query(
+            usermodels.getByUsername,
+            [username],
+            (err) =>{if (err) throw err;}
+        );
+        if (UsernameUser){
+            res.status(409).json({msg: `user with username ${username} already exists`});
+            return;
+        }
+        const [emailUser]=await conn.query(
+            usermodels.getByEmail,
+            [email],
+            (err) =>{if (err) throw err;}
+        );
+        if (emailUser){
+            res.status(409).json({msg: `user with email ${email} already exists`});
+            return;
+        }
+
+const userAdded = await conn.query(usermodels.addRow,
+     [...user],
+     (err) => {
+  if (err)throw err;
+});
+
+if(userAdded.affecteRows===0) throw new error({message: 'Failed to add user'});
+res.json({message: 'User added succesfully'});
+    }catch(error){
+      console.log(error);
+      res.status(500).json(error);
+    }finally{
+    if (conn) conn.end();
+}
+}
+
+module.exports={listUsers, listUserByID, addUser};
